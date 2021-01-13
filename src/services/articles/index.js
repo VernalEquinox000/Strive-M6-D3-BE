@@ -102,7 +102,18 @@ articlesRouter.post("/:id/reviews", async (req, res, next) => {
       {
         $push: { reviews: req.body },
       } */
-    
+    const reviewsArticle = await ArticleModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          reviews: {
+            ...req.body,
+          },
+        },
+      }
+    );
+    res.status(201).send(reviewsArticle);
+  
   } catch (error) {
     next(error)
   }
