@@ -1,18 +1,37 @@
 const express = require("express")
 const mongoose = require("mongoose")
+const q2m = require("query-to-mongo")
 const ArticleModel = require("./schema")
 const ReviewModel = require("../reviews/schema")
 
 const articlesRouter = express.Router()
 
 //GET articles
-articlesRouter.get("/", async (req, res, next) => {
+/* articlesRouter.get("/", async (req, res, next) => {
   try {
     const articles = await ArticleModel.find()
     //also findOne or findById
     res.send(articles)
   } catch (error) {
     next(error)
+  }
+}) */
+
+//GET articles - pagination
+articlesRouter.get("/", async (req, res, next) => {
+  try {
+    const query = q2m(req.query)
+    console.log(query)
+    const totArticles = await ArticleModel.countDocuments(query.criteria)
+
+    const articles = await ArticleModel.find(query.criteria, query.options.fields)
+      .skip(query.options.skip)
+      .limit(query.options.limit)
+      .sort(query.options.sort)
+    res.send({links: query.links("/articles",totArticles), articles})
+  } catch (error) {
+    console.log(error)
+    next (error)
   }
 })
 
