@@ -1,5 +1,5 @@
 const express = require("express")
-
+const mongoose = require("mongoose")
 const ArticleModel = require("./schema")
 const ReviewModel = require("../reviews/schema")
 
@@ -94,6 +94,40 @@ articlesRouter.get("/:id/reviews", async (req, res, next) => {
   }
 })
 
+//GET /articles/:id/reviews/:reviewId => returns a single review for the specified article
+articlesRouter.get("/:id/reviews/:reviewId", async (req, res, next) => {
+  try {
+
+    /* const reviewToShow = await ArticleModel.findById(req.params.id, {
+      reviewToShow: 1,
+      _id: 0
+    })
+    console.log(reviewToShow)
+    res.send(reviewToShow)  */
+
+    const { reviews } = await ArticleModel.findOne(
+      {
+        _id: mongoose.Types.ObjectId(req.params.id)
+      },
+      {
+        _id:0,
+        reviews: {
+          $elemMatch: {_id: mongoose.Types.ObjectId(req.params.reviewId)},
+        }
+      }
+    )
+
+    if (reviews && reviews.length > 0) {
+      res.send(reviews[0])
+    } else {
+      next()
+    }
+    
+  } catch (error) {
+    next(error)
+  }
+})
+
 //POST /articles/:id => adds a new review for the specified article
 articlesRouter.post("/:id/reviews", async (req, res, next) => {
   try { 
@@ -102,6 +136,7 @@ articlesRouter.post("/:id/reviews", async (req, res, next) => {
       {
         $push: { reviews: req.body },
       } */
+    
     const reviewsArticle = await ArticleModel.findByIdAndUpdate(
       req.params.id,
       {
@@ -115,6 +150,67 @@ articlesRouter.post("/:id/reviews", async (req, res, next) => {
     res.status(201).send(reviewsArticle);
   
   } catch (error) {
+    next(error)
+  }
+})
+
+articlesRouter.put("/:id/reviews/:reviewId", async (req, res, next) => {
+  try { 
+    const { reviews }  = await ArticleModel.findOne(
+      {
+        _id: mongoose.Types.ObjectId(req.params.id),
+      },
+      {
+        _id: 0,
+        reviews: {
+          $elemMatch: { _id: mongoose.Types.ObjectId(req.params.reviewId) },
+        },
+      }
+    )
+    console.log(reviews)
+    if (reviews && reviews.length > 0) {
+      const reviewToReplace = { ...reviews[0].toObject(), ...req.body }
+      console.log(reviewToReplace)
+      mongoose.set('useFindAndModify', false);
+      const modifiedReview = await ArticleModel.findOneAndUpdate(
+        {
+          _id: mongoose.Types.ObjectId(req.params.id),
+          "reviews._id": mongoose.Types.ObjectId(req.params.reviewId),
+        },
+        { $set: { "reviews.$": reviewToReplace } },
+        {
+          runValidators: true,
+          new: true,
+        } 
+      )
+      console.log(modifiedReview)
+      res.send(modifiedReview)
+    } else {
+      next()
+    }
+  } catch (error) {
+    console.log(error)
+    next(error)
+  }
+})
+
+
+articlesRouter.delete("/:id/reviews/:reviewId", async (req, res, next) => {
+  try {
+    const modifiedReview = await ArticleModel.findByIdAndUpdate(
+      req.params.id,
+      {
+        $pull: {
+          reviews: { _id: mongoose.Types.ObjectId(req.params.reviewId) },
+        },
+      },
+      {
+        new: true,
+      }
+    )
+    res.send(modifiedReview)
+  } catch (error) {
+    console.log(error)
     next(error)
   }
 })
